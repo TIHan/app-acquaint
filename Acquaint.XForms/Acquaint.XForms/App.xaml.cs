@@ -16,7 +16,8 @@ namespace Acquaint.XForms
 
 			if (Device.OS == TargetPlatform.Android)
 			{
-				MainPage = new SplashPage();
+				//MainPage = new SplashPage();
+				MainPage = Xamarin.Forms.FSharp.Views.toContentPage(Acquaint.XForms.Views.splash);
 			}
 			else
 			{

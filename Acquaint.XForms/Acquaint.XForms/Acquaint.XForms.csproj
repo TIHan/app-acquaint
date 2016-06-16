@@ -166,5 +166,13 @@
       <Project>{1D18D929-1B53-4AF9-9499-14ABB26D257F}</Project>
       <Name>Acquaint.Util</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Acquaint.XForms.FSharp\Acquaint.XForms.FSharp.fsproj">
+      <Project>{C69F7763-64D2-4F5B-8077-2AF8D400FFEA}</Project>
+      <Name>Acquaint.XForms.FSharp</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Xamarin.Forms.FSharp\Xamarin.Forms.FSharp.fsproj">
+      <Project>{1B9BCB26-A234-49DF-BE44-F49CE9E82E5A}</Project>
+      <Name>Xamarin.Forms.FSharp</Name>
+    </ProjectReference>
   </ItemGroup>
 </Project>

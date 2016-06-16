@@ -29,6 +29,7 @@
     <CodesignKey>iPhone Developer</CodesignKey>
     <MtouchProfiling>true</MtouchProfiling>
     <MtouchI18n>other</MtouchI18n>
+    <MtouchLink>None</MtouchLink>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|iPhone' ">
     <Optimize>true</Optimize>
@@ -181,6 +182,7 @@
     <Reference Include="Calabash">
       <HintPath>..\..\packages\Xamarin.TestCloud.Agent.0.19.1\lib\Xamarin.iOS10\Calabash.dll</HintPath>
     </Reference>
+    <Reference Include="FSharp.Core" />
   </ItemGroup>
   <ItemGroup>
     <ImageAsset Include="Resources\Images.xcassets\AppIcons.appiconset\Contents.json">
@@ -273,6 +275,14 @@
     <ProjectReference Include="..\Acquaint.XForms\Acquaint.XForms.csproj">
       <Project>{55CEDCD6-E2D6-48EB-B9C6-A0E74016DCE0}</Project>
       <Name>Acquaint.XForms</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Acquaint.XForms.FSharp\Acquaint.XForms.FSharp.fsproj">
+      <Project>{C69F7763-64D2-4F5B-8077-2AF8D400FFEA}</Project>
+      <Name>Acquaint.XForms.FSharp</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Xamarin.Forms.FSharp\Xamarin.Forms.FSharp.fsproj">
+      <Project>{1B9BCB26-A234-49DF-BE44-F49CE9E82E5A}</Project>
+      <Name>Xamarin.Forms.FSharp</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

@@ -4,127 +4,12 @@ open System
 
 open Xamarin.Forms
 
-type Var<'T> =
-    {
-        mutable value: 'T
-        callbacks: ResizeArray<'T -> unit>
-    }
-
-    member this.Value = this.value
-
-    member this.SetValue value =
-        this.value <- value
-        this.Notify ()
-
-    member this.Update f =
-        this.value <- f this.value
-        this.Notify ()
-
-    member this.Notify () =
-        for i = 0 to this.callbacks.Count - 1 do
-            let f = this.callbacks.[i]
-            f this.value
-
-type Val<'T> =
-    {
-        mutable value: 'T
-        callbacks: ResizeArray<'T -> unit>
-        subscriptions: ResizeArray<IDisposable>
-    }
-
-    member this.Value = this.value
-
-    member this.Notify () =
-        for i = 0 to this.callbacks.Count - 1 do
-            let f = this.callbacks.[i]
-            f this.value
-
-    member this.Subscribe (callback: 'T -> unit) =
-        callback this.value
-        this.callbacks.Add callback
-        {
-            new IDisposable with
-
-                member __.Dispose () =
-                    this.callbacks.Remove (callback) |> ignore
-        }
-
-[<RequireQualifiedAccess>]
-module Var =
-
-    let create initialValue : Var<_> =
-        {
-            value = initialValue
-            callbacks = ResizeArray ()
-        }
-
-[<RequireQualifiedAccess>]
-module Val =
-
-    let constant value : Val<_> =
-        {
-            value = value
-            callbacks = ResizeArray ()
-            subscriptions = ResizeArray ()
-        }
-
-    let ofVar (var: Var<'T>) : Val<'T> =
-        {
-            value = var.Value
-            callbacks = var.callbacks
-            subscriptions = ResizeArray ()
-        }
-
-    let map f (va: Val<_>) =
-        let newVa = constant Unchecked.defaultof<_>
-
-        newVa.subscriptions.Add (
-            va.Subscribe (fun value ->
-                newVa.value <- f value
-                newVa.Notify ()
-            )
-        )
-
-        newVa
-
-    let map2 f (va1: Val<_>) (va2: Val<_>) =
-        let newVa = constant Unchecked.defaultof<_>
-        let mutable hasLastSubscription = false
-
-        newVa.subscriptions.Add (
-            va1.Subscribe (fun () ->
-                if hasLastSubscription then 
-                    newVa.value <- f va1.value va2.value
-                    newVa.Notify ()
-            )
-        )
-
-        newVa.subscriptions.Add (
-            va2.Subscribe (fun () ->
-                newVa.value <- f va1.value va2.value
-                newVa.Notify ()
-                hasLastSubscription <- true
-            )
-        )
-
-        newVa
-
-
-
-type FormsContext =
-    {
-        Disposables: IDisposable ResizeArray
-    }
-
-    member this.AddDisposable x =
-        this.Disposables.Add x
-
-type ElementAttribute<'T when 'T :> View> = 
+type ViewAttribute<'T when 'T :> View> = 
     | Once of ('T -> unit)
-    | Dynamic of (FormsContext -> 'T -> unit)
+    | Dynamic of (Context -> 'T -> unit)
 
 [<AutoOpen>]
-module ElementAttributes =
+module ViewAttributes =
 
     let inline verticalOptions< ^T when ^T : (member set_VerticalOptions : LayoutOptions -> unit) and
                             ^T :> View> value =
@@ -165,29 +50,28 @@ module ElementAttributes =
         let inline text< ^T when ^T : (member set_Text : string -> unit) and
                             ^T :> View> (va: Val<string>) =
             Dynamic (fun context (el: ^T) ->
-                va.Subscribe (fun value -> (^T : (member set_Text : string -> unit) (el, value)))
-                |> context.AddDisposable
+                context.Subscribe (fun value -> (^T : (member set_Text : string -> unit) (el, value))) va
             )
 
-    let inline textBinding< ^T when ^T : (member set_Text : string -> unit) and
-                        ^T : (member get_Text : unit -> string) and
-                        ^T : (member add_TextChanged : System.EventHandler<TextChangedEventArgs> -> unit) and
-                        ^T :> View> (var: Var<string>) =
-        Dynamic (fun context (el: ^T) ->
-            ()
-            //let handler = (^T : (member add_TextChanged : System.EventHandler<TextChangedEventArgs> -> unit) (el))
+    //let inline textBinding< ^T when ^T : (member set_Text : string -> unit) and
+    //                    ^T : (member get_Text : unit -> string) and
+    //                    ^T : (member add_TextChanged : System.EventHandler<TextChangedEventArgs> -> unit) and
+    //                    ^T :> View> (var: Var<string>) =
+    //    Dynamic (fun context (el: ^T) ->
+    //        ()
+    //        //let handler = (^T : (member add_TextChanged : System.EventHandler<TextChangedEventArgs> -> unit) (el))
 
-            //var.Subscribe (fun () -> (^T : (member set_Text : string -> unit) (el, var.Value)))
-        )
+    //        //var.Subscribe (fun () -> (^T : (member set_Text : string -> unit) (el, var.Value)))
+    //    )
 
 [<AbstractClass>]
 type BaseView () =
 
-    abstract CreateView : FormsContext -> View
+    abstract CreateView : Context -> View
 
-    abstract SubscribeView : FormsContext -> View -> unit
+    abstract SubscribeView : Context -> View -> unit
 
-type View<'T when 'T :> View> (create: FormsContext -> 'T, subscribe: FormsContext -> 'T -> unit) =
+type View<'T when 'T :> View> (create: Context -> 'T, subscribe: Context -> 'T -> unit) =
     inherit BaseView ()
 
     member this.Create = create
@@ -199,14 +83,14 @@ type View<'T when 'T :> View> (create: FormsContext -> 'T, subscribe: FormsConte
     override this.SubscribeView context view = subscribe context (view :?> 'T)
 
 [<AutoOpen>]
-module Helpers =
+module View =
 
-    let extend create subscribe (view: View<'T>) =
+    let extend f subscribe (view: View<'T>) =
         View<'T> (
             (fun context ->
                 let view' : 'T = view.Create context
 
-                create context view'
+                f context view'
 
                 view'
             ),
@@ -238,7 +122,7 @@ module Helpers =
                 )
             )
 
-    let attributes (attribs: ElementAttribute<_> list) (view: View<_>) =
+    let attributes (attribs: ViewAttribute<_> list) (view: View<_>) =
         view
         |> extend
             (fun context view' ->
@@ -257,62 +141,102 @@ module Helpers =
                 )
             )
 
-    //module Dynamic =
-
-    //    let children (children: Val<BaseView list>) (view: View<AbsoluteLayout>) =
-    //        let childrenViews = ResizeArray<WeakReference<View>> ()
-
-    //        view
-    //        |> extend 
-    //            (fun context view ->
-    //                ()
-    //            )
-
-    //            (fun context view' ->
-
-    //                children.Subscribe (fun children ->
-    //                    childrenViews
-    //                    |> Seq.iter (fun childView ->
-    //                        match childView.TryGetTarget () with
-    //                        | (true, childView) -> view'.Children.Remove (childView) |> ignore
-    //                        | _ -> ()
-    //                    )
-
-    //                    children
-    //                    |> Seq.iter (fun child ->
-    //                        let childView = child.CreateView context
-    //                        childrenViews.Add(WeakReference<View> (childView))
-    //                        view'.Children.Add (childView)
-    //                    )
-    //                )
-    //                |> context.AddDisposable
-    //            )
-
 type FSharpContentPage (view: BaseView) =
     inherit ContentPage ()
 
     let mutable isInitialized = false
-    let mutable context = 
-        {
-            Disposables = ResizeArray ()
-        }
+    let mutable context = Unchecked.defaultof<_>
+
+    member val Subscribe : Context -> unit = fun _ -> () with get, set
+
+    member val Appeared = Event<unit> () with get
+
+    member val Disappeared = Event<unit> () with get
 
     override this.OnAppearing () =
         base.OnAppearing ()
 
+        context <- new Context ()
+
+        this.Subscribe context
+
         if not isInitialized then
             this.Content <- view.CreateView context
             isInitialized <- true
+            context.WillForceImmediateUpdate <- true
 
         view.SubscribeView context this.Content
+        this.Appeared.Trigger ()
 
     override this.OnDisappearing () =
         base.OnDisappearing ()
 
-        context.Disposables
-        |> Seq.iter (fun x -> x.Dispose ())
+        this.Disappeared.Trigger ()
 
-        context.Disposables.Clear ()
+        (context :> IDisposable).Dispose ()
+        context <- Unchecked.defaultof<_>
+
+type Page<'T when 'T :> Page> =
+    {
+        Create: unit -> 'T
+        Subscribe: 'T -> Context -> unit
+    }
+
+module Page =
+
+    let build (page: Page<'T>) =
+        let page' = page.Create ()
+        match (page' :> obj) with
+        | :? FSharpContentPage as page'' ->
+            page''.Subscribe <- page.Subscribe page'
+        | _ -> ()
+        page'
+
+    let onAppear (f: Async<unit>) (page: Page<FSharpContentPage>) =
+        {
+            Create = fun () ->
+                let page' = page.Create ()
+
+                page'
+
+            Subscribe = fun page' context ->
+                page'.Appeared.Publish.Subscribe (fun () ->
+                    Async.StartImmediate f
+                )
+                |> context.AddDisposable
+        }
+
+    let navigationPush (value: Val<Page<_> option>) (page: Page<FSharpContentPage>) =
+        {
+            Create = fun () ->
+                let page' = page.Create ()
+
+                page'
+
+            Subscribe = fun page' context ->
+                page.Subscribe page' context
+
+                value
+                |> context.Subscribe (function
+                    | Some page ->
+                        page |> build
+                        |> page'.Navigation.PushAsync
+                        |> ignore
+                    | _ -> ()
+                )
+        }
+
+    let content view =
+        {
+            Create = fun () -> FSharpContentPage (view)
+            Subscribe = fun _ _ -> ()
+        }
+
+    let navigation page =
+        {
+            Create = fun () -> NavigationPage (page.Create ())
+            Subscribe = fun _ _ -> ()
+        }
 
 [<AutoOpen>]
 module Views =
@@ -345,6 +269,3 @@ module Views =
             )
         )
         |> attributes attribs
-
-    let toContentPage (view: View<_>) =
-        FSharpContentPage (view)

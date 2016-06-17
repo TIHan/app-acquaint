@@ -15,14 +15,63 @@ module Views =
             ]
         ]
 
+module Models =
+
+    type SplashViewModel = SplashViewModel of unit
+
+    type AcquaintanceListViewModel = AcquaintanceListViewModel of unit
+
+    type MainViewModel =
+        | Splash of SplashViewModel
+        | AcquaintanceList of AcquaintanceListViewModel
+
+    type MainApplicationModel =
+        {
+            ViewModel: Var<MainViewModel>
+        }
+
+        static member Create () =
+            {
+                ViewModel = Var.create (SplashViewModel () |> Splash)
+            }
+
+        member this.GoToAcquaintanceList = async {
+            let context = System.Threading.SynchronizationContext.Current
+            do! Async.SwitchToThreadPool ()
+            do! Async.Sleep (3000)
+            do! Async.SwitchToContext context
+
+            this.ViewModel.Set (AcquaintanceListViewModel () |> AcquaintanceList)
+        }
+
 module Pages =
 
-    open Page
+    open Models
+    open Views
 
-    let splash nextPage =
-        content Views.splash
-        |> onAppear (async {
-            do! Async.Sleep (3000)
+    let splashPage (mainApplicationModel: MainApplicationModel) =
+        contentPage splash
+        |> onAppear mainApplicationModel.GoToAcquaintanceList
 
-            Application.Current.MainPage <- (navigation nextPage) |> build
-        })
+module Applications =
+
+    open Pages
+    open Models
+    open Application
+
+    let main (app: Xamarin.Forms.Application) nextPage =
+        let model = MainApplicationModel.Create ()
+
+        app
+        |> create [
+            model.ViewModel
+            |> Val.ofVar
+            |> Val.map (function
+                | Splash vm -> 
+                    (splashPage model).ToPage ()
+                | AcquaintanceList vm ->
+                    (Page.create (fun () -> nextPage) (fun _ _ -> ())).ToPage ()
+            )
+            |> Dynamic.mainPage
+        ]
+        |> build

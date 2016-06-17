@@ -49,7 +49,9 @@
   <ItemGroup>
     <Compile Include="Core.fsi" />
     <Compile Include="Core.fs" />
-    <Compile Include="DSL.fs" />
+    <Compile Include="ViewAttributes.fs" />
+    <Compile Include="View.fs" />
+    <Compile Include="Page.fs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

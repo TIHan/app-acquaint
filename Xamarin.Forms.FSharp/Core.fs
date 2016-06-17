@@ -84,7 +84,7 @@ module Val =
         va
 
     let map f (va: Val<_>) =
-        let newVa = constant Unchecked.defaultof<_>
+        let newVa = constant (f va.value)
 
         newVa.subscriptions.Add (
             va.Subscribe (fun value ->
@@ -97,7 +97,7 @@ module Val =
         newVa
 
     let map2 f (va1: Val<_>) (va2: Val<_>) =
-        let newVa = constant Unchecked.defaultof<_>
+        let newVa = constant (f va1.value va2.value)
         let mutable hasLastSubscription = false
 
         newVa.subscriptions.Add (

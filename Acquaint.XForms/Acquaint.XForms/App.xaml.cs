@@ -17,7 +17,7 @@ namespace Acquaint.XForms
 			if (Device.OS == TargetPlatform.Android)
 			{
 				//MainPage = new SplashPage();
-				MainPage = Xamarin.Forms.FSharp.Views.toContentPage(Acquaint.XForms.Views.splash);
+				Acquaint.XForms.Applications.main(this, (new AcquaintanceListPage() { Title = "Acquaintances", BindingContext = new AcquaintanceListViewModel() }));
 			}
 			else
 			{

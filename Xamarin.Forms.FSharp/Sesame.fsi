@@ -1,4 +1,4 @@
-﻿namespace Xamarin.Forms.FSharp
+﻿namespace Sesame
 
 open System
 

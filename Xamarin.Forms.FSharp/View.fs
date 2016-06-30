@@ -2,27 +2,97 @@
 
 open System
 
+open Sesame
+
 open Xamarin.Forms
 
 [<AbstractClass>]
 type BaseView () =
 
-    abstract CreateView : unit -> View
+    abstract Create : unit -> View
 
-    abstract SubscribeView : Context -> View -> unit
+    abstract Subscribe : View -> Context -> unit
 
-type View<'T when 'T :> View> (create: unit -> 'T, subscribe: Context -> 'T -> unit) =
+[<Sealed>]
+type View<'T when 'T :> View> (create: unit -> 'T, subscribe: 'T -> Context -> unit) =
     inherit BaseView ()
 
-    member this.Create = create
+    override this.Create () = create () :> View
 
-    member this.Subscribe = subscribe
-        
-    override this.CreateView () = (create ()) :> View
+    override this.Subscribe view context = subscribe (view :?> 'T) context
 
-    override this.SubscribeView context view = subscribe context (view :?> 'T)
+    member this.Extend (f, subscribe2) =
+        View<'T> (
+            (fun () ->
+                let page = create ()
+                f page
+                page
+            ),
+            (fun page context ->
+                subscribe page context
+                subscribe2 page context 
+            )
+        )
 
-[<AutoOpen>]
+type FSharpViewCell (view: BaseView) as this =
+    inherit ViewCell ()
+
+    let mutable context = new Context ()
+
+    do
+        this.View <- view.Create ()
+        context.WillForceImmediateUpdate <- true
+
+    member val Subscribe : Context -> unit = fun _ -> () with get, set
+
+    override this.OnAppearing () =
+        base.OnAppearing ()
+
+        let isInitialized = context <> Unchecked.defaultof<_>
+
+        if not isInitialized then
+            context <- new Context ()
+
+        this.Subscribe context
+
+        if not isInitialized then
+            context.WillForceImmediateUpdate <- true
+
+        view.Subscribe this.View context
+
+    override this.OnDisappearing () =
+        base.OnDisappearing ()
+
+        if (context <> Unchecked.defaultof<_>) then
+            (context :> IDisposable).Dispose ()
+            context <- Unchecked.defaultof<_>
+
+type FSharpListItem =
+    {
+        View: BaseView
+        Index: int
+    }
+
+type FSharpListView<'T when 'T :> BaseView> () as this =
+    inherit ListView (ListViewCachingStrategy.RecycleElement)
+
+    do
+        this.ItemTemplate <- null
+
+    member this.SubscribeItems (context: Context, va: Val<ResizeArray<'T>>) =
+        va
+        |> context.Subscribe (fun items ->
+            this.ItemsSource <-
+                items
+                |> Seq.mapi (fun i x -> { View = x; Index = i })
+        )
+
+    override this.CreateDefault(o) =
+        let item = o :?> FSharpListItem
+        let cell = FSharpViewCell (item.View)
+        cell :> Cell
+
+[<RequireQualifiedAccess>]
 module View =
 
     let create f subscribe =
@@ -30,15 +100,16 @@ module View =
 
     let extend f subscribe (view: View<'T>) =
         View<'T> (
-            (fun context ->
-                let view' : 'T = view.Create context
+            (fun () ->
+                let view' : 'T = view.Create () :?> 'T
 
-                f context view'
+                f view'
 
                 view'
             ),
 
             (fun context view' ->
+                view.Subscribe context view'
                 subscribe context view'
             )
         )
@@ -47,20 +118,42 @@ module View =
         let childrenViews = ResizeArray ()
         view
         |> extend 
-            (fun context view ->
+            (fun view' ->
                 children
                 |> List.iter (fun child ->
-                    let childView = child.CreateView ()
-                    view.Children.Add (childView)
+                    let childView = child.Create ()
+                    view'.Children.Add (childView)
                     childrenViews.Add (WeakReference<View> (childView))
                 )
             )
 
-            (fun context view' ->
+            (fun view' context ->
                 (children, childrenViews)
                 ||> Seq.iter2 (fun child childView -> 
                     match childView.TryGetTarget () with
-                    | (true, childView) -> child.SubscribeView context childView
+                    | (true, childView) -> child.Subscribe childView context
+                    | _ -> ()
+                )
+            )
+
+    let stackChildren (children: BaseView list) (view: View<StackLayout>) =
+        let childrenViews = ResizeArray ()
+        view
+        |> extend 
+            (fun view' ->
+                children
+                |> List.iter (fun child ->
+                    let childView = child.Create ()
+                    view'.Children.Add (childView)
+                    childrenViews.Add (WeakReference<View> (childView))
+                )
+            )
+
+            (fun view' context ->
+                (children, childrenViews)
+                ||> Seq.iter2 (fun child childView -> 
+                    match childView.TryGetTarget () with
+                    | (true, childView) -> child.Subscribe childView context
                     | _ -> ()
                 )
             )
@@ -68,7 +161,7 @@ module View =
     let attributes (attribs: ViewAttribute<_> list) (view: View<_>) =
         view
         |> extend
-            (fun context view' ->
+            (fun view' ->
                 attribs
                 |> List.iter (function
                     | Once f -> f view'
@@ -76,11 +169,23 @@ module View =
                 )
             )
 
-            (fun context view' ->
+            (fun view' context ->
                 attribs
                 |> List.iter (function
-                    | Dynamic f -> f context view'
+                    | Dynamic f -> f view' context
                     | _ -> ()
+                )
+            )
+
+    let handlers (handlers: ViewHandler<_> list) (view: View<_>) =
+        view
+        |> extend
+            (fun view' -> ())
+
+            (fun view' context ->
+                handlers
+                |> List.iter (function
+                    | Handler f -> f view' |> context.AddDisposable
                 )
             )
 
@@ -88,30 +193,49 @@ module View =
 module Views =
 
     let absoluteLayout attribs children' =
-        View<AbsoluteLayout> (
-            (fun _ ->
-                let absoluteLayout = AbsoluteLayout ()
+        View.create
+            (fun () -> AbsoluteLayout ())
+            (fun _ _ -> ())
+        |> View.attributes attribs
+        |> View.children children'
 
-                absoluteLayout
-            ),
-
-            (fun context stackLayout ->
-                ()
-            )
-        )
-        |> attributes attribs
-        |> children children'
+    let stackLayout attribs children' =
+        View.create
+            (fun () -> StackLayout ())
+            (fun _ _ -> ())
+        |> View.attributes attribs
+        |> View.stackChildren children'
 
     let image attribs =
-        View<Image> (
-            (fun _ ->
-                let image = Image ()
+        View.create
+            (fun () -> Image ())
+            (fun _ _ -> ())
+        |> View.attributes attribs
 
-                image
-            ),
+    let button attribs onClick =
+        View.create
+            (fun () -> Button ())
+            (fun _ _ -> ())
+        |> View.attributes attribs
+        |> View.handlers [ clicked onClick ]
 
-            (fun context image ->
-                ()
+    let entry attribs onTextChanged =
+        View.create
+            (fun () -> Entry ())
+            (fun _ _ -> ())
+        |> View.attributes attribs
+        |> View.handlers [ textChanged onTextChanged ]
+
+    let label attribs =
+        View.create
+            (fun () -> Label ())
+            (fun _ _ -> ())
+        |> View.attributes attribs
+
+    let listView<'T when 'T :> BaseView> attribs (views: Val<ResizeArray<'T>>) =
+        View.create
+            (fun () -> FSharpListView ())
+            (fun listView' context ->
+                listView'.SubscribeItems (context, views)
             )
-        )
-        |> attributes attribs
+        |> View.attributes attribs

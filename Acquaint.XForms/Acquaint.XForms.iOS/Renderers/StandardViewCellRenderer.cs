@@ -1,4 +1,5 @@
 ﻿using Xamarin.Forms;
+using Xamarin.Forms.FSharp;
 using Xamarin.Forms.Platform.iOS;
 using System.Diagnostics;
 

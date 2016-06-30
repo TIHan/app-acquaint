@@ -2,18 +2,20 @@
 
 open System
 
+open Sesame
+
 open Xamarin.Forms
 
 type ViewAttribute<'T when 'T :> View> = 
     | Once of ('T -> unit)
-    | Dynamic of (Context -> 'T -> unit)
+    | Dynamic of ('T -> Context -> unit)
 
 [<AutoOpen>]
 module ViewAttributes =
 
     let inline verticalOptions< ^T when ^T : (member set_VerticalOptions : LayoutOptions -> unit) and
                             ^T :> View> value =
-        Once (fun (el: ^T) -> (^T : (member set_VerticalOptions : LayoutOptions -> unit) (el, value)))
+        Once (fun view' -> (^T : (member set_VerticalOptions : LayoutOptions -> unit) (view', value)))
 
     let inline horizontalOptions< ^T when ^T : (member set_HorizontalOptions : LayoutOptions -> unit) and
                             ^T :> View> value =
@@ -49,17 +51,6 @@ module ViewAttributes =
 
         let inline text< ^T when ^T : (member set_Text : string -> unit) and
                             ^T :> View> (va: Val<string>) =
-            Dynamic (fun context (el: ^T) ->
-                context.Subscribe (fun value -> (^T : (member set_Text : string -> unit) (el, value))) va
+            Dynamic (fun view' context ->
+                context.Subscribe (fun value -> (^T : (member set_Text : string -> unit) (view', value))) va
             )
-
-    //let inline textBinding< ^T when ^T : (member set_Text : string -> unit) and
-    //                    ^T : (member get_Text : unit -> string) and
-    //                    ^T : (member add_TextChanged : System.EventHandler<TextChangedEventArgs> -> unit) and
-    //                    ^T :> View> (var: Var<string>) =
-    //    Dynamic (fun context (el: ^T) ->
-    //        ()
-    //        //let handler = (^T : (member add_TextChanged : System.EventHandler<TextChangedEventArgs> -> unit) (el))
-
-    //        //var.Subscribe (fun () -> (^T : (member set_Text : string -> unit) (el, var.Value)))
-    //    )

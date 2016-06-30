@@ -47,7 +47,10 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Models.fs" />
+    <Compile Include="Views.fs" />
     <Compile Include="Pages.fs" />
+    <Compile Include="Applications.fs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

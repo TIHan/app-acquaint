@@ -1,53 +1,57 @@
 ﻿module Acquaint.XForms.Models
 
 open Sesame
+open Acquaint.Data
 
-type SplashViewModel = SplashViewModel of unit
+type Acquaintance =
+    {
+        Id: string
+        FirstName: string
+        LastName: string
+        Company: string
+        JobTitle: string
+        Email: string
+        Phone: string
+        Street: string
+        City: string
+        PostalCode: string
+        State: string
+        PhotoUrl: string
+    }
 
 type AcquaintanceListViewModel = 
     {
-        Acquaintances: Var<string ResizeArray>
+        DataSource: AcquaintanceDataSource
+        Acquaintances: Var<Acquaintance seq>
     }
 
     static member Create () =
         {
-            Acquaintances = 
-                List.init 10 (fun i -> "hopac" + string i)
-                |> List.append (List.init 10 (fun i -> "jopac" + string i))
-                |> List.append (List.init 20 (fun i -> "hopac1234" + string i))
-                |> ResizeArray |> Var.create
+            DataSource = new AcquaintanceDataSource()
+            Acquaintances = Var.create Seq.empty
         }
 
-type MainViewModel =
-    | Splash of SplashViewModel
-    | AcquaintanceList of AcquaintanceListViewModel
 
-    static member CreateSplash () =
-        SplashViewModel ()
-        |> Splash
-
-    static member CreateAcquaintanceList () =
-        AcquaintanceListViewModel.Create ()
-        |> AcquaintanceList
-
-type MainApplicationModel =
-    {
-        ViewModel: Var<MainViewModel>
-    }
-
-    static member Create () =
-        {
-            ViewModel = 
-                MainViewModel.CreateSplash ()
-                |> Var.create
+    member this.Load () =
+        async {
+            let! data = this.DataSource.GetItems (0, 1000) |> Async.AwaitTask
+            let data =
+                data
+                |> Seq.map (fun (x: Acquaint.Data.Acquaintance) ->
+                    {
+                        Id = x.Id
+                        FirstName = x.FirstName
+                        LastName= x.LastName
+                        Company = x.Company
+                        JobTitle = x.JobTitle
+                        Email = x.Email
+                        Phone = x.Phone
+                        Street = x.Street
+                        City = x.City
+                        PostalCode = x.PostalCode
+                        State = x.State
+                        PhotoUrl = x.PhotoUrl
+                    }
+                )
+            this.Acquaintances.Set data
         }
-
-    member this.GoToAcquaintanceList = async {
-        let context = System.Threading.SynchronizationContext.Current
-        do! Async.SwitchToThreadPool ()
-        do! Async.Sleep (3000)
-        do! Async.SwitchToContext context
-
-        MainViewModel.CreateAcquaintanceList ()
-        |> this.ViewModel.Set
-    }

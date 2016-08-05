@@ -49,14 +49,10 @@
   <ItemGroup>
     <Compile Include="Sesame.fsi" />
     <Compile Include="Sesame.fs" />
-    <Compile Include="ViewAttributes.fs" />
-    <Compile Include="ViewHandlers.fs" />
-    <Compile Include="View.fs" />
-    <Compile Include="FSharpContentPage.fs" />
-    <Compile Include="PageAttributes.fs" />
-    <Compile Include="PageHandlers.fs" />
-    <Compile Include="Page.fs" />
-    <Compile Include="Application.fs" />
+    <Compile Include="Sesame.Forms.Core.fs" />
+    <Compile Include="Sesame.Forms.Page.fs" />
+    <Compile Include="Sesame.Forms.Cell.fs" />
+    <Compile Include="Sesame.Forms.Controls.fs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

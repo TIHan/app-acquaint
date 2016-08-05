@@ -6,18 +6,17 @@ using Xamarin.Forms.Xaml;
 
 namespace Acquaint.XForms
 {
-    public partial class App : Application
+    public partial class AppLegacy : Application
     {
-        public App()
+        public AppLegacy()
         {
             InitializeComponent();
 
             SubscribeToDisplayAlertMessages();
 
-			if (Device.OS != TargetPlatform.Android)
+			if (Device.OS == TargetPlatform.Android)
 			{
-				//MainPage = new SplashPage();
-				Acquaint.XForms.Applications.main(this, (new AcquaintanceListPage() { Title = "Acquaintances", BindingContext = new AcquaintanceListViewModel() }));
+				MainPage = new SplashPage();
 			}
 			else
 			{

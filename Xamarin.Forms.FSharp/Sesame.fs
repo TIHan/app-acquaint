@@ -2,160 +2,171 @@
 
 open System
 
-type Var<'T> =
-    {
-        mutable value: 'T
-        callbacks: ResizeArray<'T -> unit>
-    }
+[<Sealed>]
+type Val<'T> (subscribe) =
 
-    member this.Value = this.value
+    member val Subscribe : ('T -> unit) -> IDisposable = subscribe with get, set 
+
+[<Sealed>]
+type Var<'T> (initialValue) as this =
+
+    let callbacks = ResizeArray<'T -> unit> ()
+
+    member val Value = initialValue with get, set
 
     member this.Set value =
-        this.value <- value
+        this.Value <- value
         this.Notify ()
 
     member this.Update f =
-        this.value <- f this.value
+        this.Value <- f this.Value
         this.Notify ()
 
     member this.Notify () =
-        for i = 0 to this.callbacks.Count - 1 do
-            let f = this.callbacks.[i]
-            f this.value
+        callbacks
+        |> Seq.toList
+        |> Seq.iter (fun f -> f this.Value)
+
+    member val Val =
+        Val<'T> (fun callback ->
+            callbacks.Add callback
+            callback this.Value
+            {
+                new IDisposable with
+                    member this.Dispose () =
+                        callbacks.Remove callback |> ignore
+            }
+        )
+
+[<Sealed>]
+type CmdVal<'T> (subscribe) =
+
+    member val Subscribe : ('T -> unit) -> IDisposable = subscribe with get, set 
+
+[<Sealed>]
+type Cmd<'T> () =
+
+    let mutable callback = fun _ -> ()
+
+    member this.Execute value =
+        callback value
+
+    member val Val =
+        CmdVal<'T> (fun callback' ->
+            callback <- callback'
+            {
+                new IDisposable with
+                    member this.Dispose () =
+                        callback <- fun _ -> ()
+            }
+        )
 
 [<RequireQualifiedAccess>]
 module Var =
 
     let create initialValue =
-        {
-            value = initialValue
-            callbacks = ResizeArray ()
-        }
-
-type Val<'T> =
-    {
-        mutable value: 'T
-        mutable isDirty: bool
-        callbacks: ResizeArray<'T -> unit>
-        subscriptions: ResizeArray<IDisposable>
-    }
-
-    member this.Value = this.value
-
-    member this.Notify () =
-        for i = 0 to this.callbacks.Count - 1 do
-            let f = this.callbacks.[i]
-            f this.value
-
-    member this.Subscribe (callback: 'T -> unit) =
-        this.callbacks.Add callback
-        {
-            new IDisposable with
-
-                member __.Dispose () =
-                    this.callbacks.Remove (callback) |> ignore
-        }
+        Var (initialValue)
 
 [<RequireQualifiedAccess>]
 module Val =
-
+ 
     let constant value =
-        {
-            value = value
-            isDirty = true
-            callbacks = ResizeArray ()
-            subscriptions = ResizeArray ()
-        }
-
-    let ofVar (var: Var<'T>) : Val<'T> =
-        let va = 
+        Val<'T> (fun callback -> 
+            callback value
             {
-                value = var.Value
-                isDirty = true
-                callbacks = var.callbacks
-                subscriptions = ResizeArray ()
+                new IDisposable with
+                    member this.Dispose () = ()
             }
-
-        var.callbacks.Add (fun value ->
-            va.value <- value
-            va.isDirty <- true
         )
 
-        va
+    let map f (va: Val<'T>) =
+        Val<_> (fun callback ->
+            va.Subscribe (fun x -> callback (f x))
+        )
 
-    let map f (va: Val<_>) =
-        let newVa = constant (f va.value)
-
-        newVa.subscriptions.Add (
-            va.Subscribe (fun value ->
-                newVa.value <- f value
-                newVa.isDirty <- true
-                newVa.Notify ()
+    let mapList f (va: Val<'T list>) =
+        Val<_> (fun callback ->
+            va.Subscribe (fun x ->
+                callback (List.map f x)
             )
         )
 
-        newVa
+[<RequireQualifiedAccess>]
+module Cmd =
 
-    let map2 f (va1: Val<_>) (va2: Val<_>) =
-        let newVa = constant (f va1.value va2.value)
-        let mutable hasLastSubscription = false
+    let create () =
+        Cmd ()
 
-        newVa.subscriptions.Add (
-            va1.Subscribe (fun value ->
-                if hasLastSubscription then 
-                    newVa.value <- f value va2.value
-                    newVa.isDirty <- true
-                    newVa.Notify ()
+[<RequireQualifiedAccess>]
+module CmdVal =
+
+    let map f (va: CmdVal<'T>) =
+        CmdVal<_> (fun callback ->
+            va.Subscribe (fun x -> callback (f x))
+        )
+
+    let filter f (va: CmdVal<'T>) =
+        CmdVal<_> (fun callback ->
+            va.Subscribe (fun x ->
+                if f x then
+                    callback x
             )
         )
 
-        newVa.subscriptions.Add (
-            va2.Subscribe (fun value ->
-                newVa.value <- f va1.value value
-                newVa.isDirty <- true
-                newVa.Notify ()
-                hasLastSubscription <- true
-            )
-        )
-
-        newVa
-
-[<Sealed>]
-type Context () =
+type Context (invokeOnMainThread) =
 
     let disposables = ResizeArray<IDisposable> ()
-    let mutable isDisposed = false
 
-    member val WillForceImmediateUpdate = false with get, set
+    let syncContext = System.Threading.SynchronizationContext.Current
 
-    member this.Subscribe f (va: Val<'T>) =
-        if isDisposed then
-            failwith "Context is disposed"
+    member this.Sink (o: 'Obj) f (va: Val<'T>) =
+        let weak = WeakReference (o)
+        let subscriptionRef : Ref<Option<IDisposable>> = ref None
 
-        if va.isDirty || this.WillForceImmediateUpdate then
-            f va.value
+        let update value =
+            if weak.IsAlive then
+                f (weak.Target :?> 'Obj) value
+                GC.Collect()
+            else
+                match !subscriptionRef with
+                | Some d -> d.Dispose ()
+                | _ -> ()
 
-        {
-            new IDisposable with
+        let callback =
+            fun value ->
+                if syncContext = System.Threading.SynchronizationContext.Current then
+                    update value
+                else
+                    invokeOnMainThread(fun () -> update value)
 
-                member this.Dispose () =
-                    va.isDirty <- false
-        }
-        |> disposables.Add
+        subscriptionRef := Some (va.Subscribe callback)
 
-        va.Subscribe f
-        |> disposables.Add
+    member this.SinkCmd (o: 'Obj) f (va: CmdVal<'T>) =
+        let weak = WeakReference (o)
+        let subscriptionRef : Ref<Option<IDisposable>> = ref None
+
+        let update value =
+            if weak.IsAlive then
+                f (weak.Target :?> 'Obj) value
+                GC.Collect()
+            else
+                match !subscriptionRef with
+                | Some d -> d.Dispose ()
+                | _ -> ()
+
+        let callback =
+            fun value ->
+                if syncContext = System.Threading.SynchronizationContext.Current then
+                    update value
+                else
+                    invokeOnMainThread(fun () -> update value)
+
+        subscriptionRef := Some (va.Subscribe callback)
 
     member this.AddDisposable x =
-        if isDisposed then
-            failwith "Context is disposed"
-
         disposables.Add(x)
 
-    interface IDisposable with
-
-        member this.Dispose () =
-            disposables
-            |> Seq.iter (fun x -> x.Dispose ())
-            disposables.Clear ()
-            isDisposed <- true
+    member this.ClearDisposables () =
+        disposables
+        |> Seq.iter (fun x -> x.Dispose ())
+        disposables.Clear ()

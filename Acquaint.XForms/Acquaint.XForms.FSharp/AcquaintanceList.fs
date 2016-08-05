@@ -1,7 +1,7 @@
 ﻿module Acquaint.XForms.AcquaintanceList
 
 open Sesame
-open Xamarin.Forms
+
 open FormsDSL
 
 open Acquaint.XForms.Models

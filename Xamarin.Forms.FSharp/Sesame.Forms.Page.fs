@@ -1,25 +1,25 @@
 ﻿namespace FormsDSL
 
 open System
-open Sesame
-open Xamarin.Forms
 
-type FsContentPage (app: WeakReference<Application>, comp: ViewComponent) as this =
-    inherit ContentPage ()
+open Sesame
+
+type FsContentPage (app: WeakReference<Xamarin.Forms.Application>, view: View) as this =
+    inherit Xamarin.Forms.ContentPage ()
 
     let mutable context = Unchecked.defaultof<_>
 
     do
         context <- new FormsContext (app)
-        this.Content <- context.CreateView comp
-        context.SubscribeView comp this.Content
+        this.Content <- context.CreateView view
+        context.SubscribeView view this.Content
         (this.Content :> obj :?> IView).InitializedEvent.Trigger ()
 
     override this.OnAppearing () =
         GC.Collect ()
 
         if context.PageInitialized then
-            context.SubscribeView comp this.Content
+            context.SubscribeView view this.Content
 
         context.PageInitialized <- true
 
@@ -43,12 +43,12 @@ type ToolbarItem =
 
 [<RequireQualifiedAccess>]
 type Page =
-    | Content of content: ViewComponent * toolbarItems: ToolbarItem list
+    | Content of content: View * toolbarItems: ToolbarItem list
 
-    member this.Push (app: Application) =
+    member this.Build (app: Xamarin.Forms.Application) =
         match this with
         | Content (comp, toolbarItems) ->
-            let contentPage = FsContentPage (WeakReference<Application> (app), comp)
+            let contentPage = FsContentPage (WeakReference<Xamarin.Forms.Application> (app), comp)
 
             toolbarItems
             |> List.iter (fun x ->
@@ -59,4 +59,4 @@ type Page =
             try
                 app.MainPage.Navigation.PushAsync (contentPage) |> ignore
             with | _ ->
-                app.MainPage <- contentPage |> NavigationPage
+                app.MainPage <- contentPage |> Xamarin.Forms.NavigationPage

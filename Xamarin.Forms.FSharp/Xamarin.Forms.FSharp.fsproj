@@ -49,7 +49,7 @@
   <ItemGroup>
     <Compile Include="Sesame.fsi" />
     <Compile Include="Sesame.fs" />
-    <Compile Include="Sesame.Forms.Core.fs" />
+    <Compile Include="Sesame.Forms.View.fs" />
     <Compile Include="Sesame.Forms.Page.fs" />
     <Compile Include="Sesame.Forms.Cell.fs" />
     <Compile Include="Sesame.Forms.Controls.fs" />

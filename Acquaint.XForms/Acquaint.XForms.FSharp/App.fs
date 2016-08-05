@@ -12,5 +12,5 @@ type App () as this =
             this.MainPage <- 
                 FsContentPage (WeakReference<Application> (this), Splash.createView ())
         else
-            (AcquaintanceList.createPage ()).Push (this)
+            (AcquaintanceList.createPage ()).Build (this)
        

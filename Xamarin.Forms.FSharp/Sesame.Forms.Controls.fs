@@ -1,11 +1,11 @@
 ﻿namespace FormsDSL
 
 open System
+
 open Sesame
-open Xamarin.Forms
 
 type FsStackLayout () =
-    inherit StackLayout ()
+    inherit Xamarin.Forms.StackLayout ()
 
     interface IView with
 
@@ -16,7 +16,7 @@ type FsStackLayout () =
         member val DisappearingEvent = Event<unit> ()
 
 type FsAbsoluteLayout () =
-    inherit StackLayout ()
+    inherit Xamarin.Forms.StackLayout ()
 
     interface IView with
 
@@ -27,7 +27,7 @@ type FsAbsoluteLayout () =
         member val DisappearingEvent = Event<unit> ()
 
 type FsLabel () =
-    inherit Label ()
+    inherit Xamarin.Forms.Label ()
 
     interface IView with
 
@@ -38,7 +38,7 @@ type FsLabel () =
         member val DisappearingEvent = Event<unit> ()
 
 type FsEntry () =
-    inherit Entry ()
+    inherit Xamarin.Forms.Entry ()
 
     interface IView with
 
@@ -49,7 +49,7 @@ type FsEntry () =
         member val DisappearingEvent = Event<unit> ()
 
 type FsButton () =
-    inherit Button ()
+    inherit Xamarin.Forms.Button ()
 
     interface IView with
 
@@ -60,7 +60,7 @@ type FsButton () =
         member val DisappearingEvent = Event<unit> ()
 
 type FsImage () =
-    inherit Image ()
+    inherit Xamarin.Forms.Image ()
 
     interface IView with
 
@@ -70,8 +70,8 @@ type FsImage () =
 
         member val DisappearingEvent = Event<unit> ()
 
-type FsListView (app: WeakReference<Application>) =
-    inherit ListView ()
+type FsListView (app: WeakReference<Xamarin.Forms.Application>) =
+    inherit Xamarin.Forms.ListView ()
 
     override this.CreateDefault (item: obj) =
         let lazyCell = (item :?> FormsDSL.Cell)
@@ -89,64 +89,104 @@ type FsListView (app: WeakReference<Application>) =
 [<AutoOpen>]
 module ViewComponentProperties =
 
-    let inline verticalOptions< ^T when ^T : (member set_VerticalOptions : LayoutOptions -> unit) and
-                            ^T :> View> value =
-        Once (fun view' -> (^T : (member set_VerticalOptions : LayoutOptions -> unit) (view', value)))
+    type LayoutOptions = Xamarin.Forms.LayoutOptions
 
-    let inline horizontalOptions< ^T when ^T : (member set_HorizontalOptions : LayoutOptions -> unit) and
-                            ^T :> View> value =
-        Once (fun (el: ^T) -> (^T : (member set_HorizontalOptions : LayoutOptions -> unit) (el, value)))
+    type TextAlignment = Xamarin.Forms.TextAlignment
 
-    let inline text< ^T when ^T : (member set_Text : string -> unit) and
-                        ^T :> View> value =
-        Once (fun (el: ^T) -> (^T : (member set_Text : string -> unit) (el, value)))
+    type ImageSource = Xamarin.Forms.ImageSource
 
-    let inline xAlign< ^T when ^T : (member set_XAlign : TextAlignment -> unit) and
-                        ^T :> View> value =
-        Once (fun (el: ^T) -> (^T : (member set_XAlign : TextAlignment -> unit) (el, value)))
+    type Aspect = Xamarin.Forms.Aspect
 
-    let inline widthRequest< ^T when ^T : (member set_WidthRequest : float -> unit) and
-                        ^T :> View> value =
-        Once (fun (el: ^T) -> (^T : (member set_WidthRequest : float -> unit) (el, value)))
+    type Color = Xamarin.Forms.Color
 
-    let inline heightRequest< ^T when ^T : (member set_HeightRequest : float -> unit) and
-                        ^T :> View> value =
-        Once (fun (el: ^T) -> (^T : (member set_HeightRequest : float -> unit) (el, value)))
+    type AbsoluteLayoutFlags = Xamarin.Forms.AbsoluteLayoutFlags
 
-    let inline source< ^T when ^T : (member set_Source : ImageSource -> unit) and
-                        ^T :> View> value =
-        Once (fun (el: ^T) -> (^T : (member set_Source : ImageSource -> unit) (el, value)))
+    type Rectangle = Xamarin.Forms.Rectangle
 
-    let inline aspect< ^T when ^T : (member set_Aspect : Aspect -> unit) and
-                        ^T :> View> value =
-        Once (fun (el: ^T) -> (^T : (member set_Aspect : Aspect -> unit) (el, value)))   
+    let inline verticalOptions< 
+                                    ^T when ^T : (member set_VerticalOptions : LayoutOptions -> unit) and
+                                    ^T :> XView and
+                                    ^T :> IView
+                                     > value =
+        View.onceProperty (fun _ xView -> (^T : (member set_VerticalOptions : LayoutOptions -> unit) (xView, value)))
 
-    let inline backgroundColor< ^T when ^T : (member set_BackgroundColor : Color -> unit) and
-                        ^T :> View> value =
-        Once (fun (el: ^T) -> (^T : (member set_BackgroundColor : Color -> unit) (el, value))) 
+    let inline horizontalOptions< 
+                                    ^T when ^T : (member set_HorizontalOptions : LayoutOptions -> unit) and
+                                    ^T :> XView and
+                                    ^T :> IView
+                                    > value =
+        View.onceProperty (fun _ xView -> (^T : (member set_HorizontalOptions : LayoutOptions -> unit) (xView, value)))
 
-    let inline absoluteLayoutFlags< ^T when ^T :> View> value =
-        Once (fun (el: ^T) -> AbsoluteLayout.SetLayoutFlags (el, value))   
+    let inline text< 
+                                    ^T when ^T : (member set_Text : string -> unit) and
+                                    ^T :> XView and
+                                    ^T :> IView> value =
+        View.onceProperty (fun _ xView -> (^T : (member set_Text : string -> unit) (xView, value)))
 
-    let inline absoluteLayoutBounds< ^T when ^T :> View> value =
-        Once (fun (el: ^T) -> AbsoluteLayout.SetLayoutBounds (el, value))
+    let inline xAlign< 
+                                    ^T when ^T : (member set_XAlign : TextAlignment -> unit) and
+                                    ^T :> XView and
+                                    ^T :> IView
+                                    > value =
+        View.onceProperty (fun _ xView -> (^T : (member set_XAlign : TextAlignment -> unit) (xView, value)))
+
+    let inline widthRequest< 
+                                    ^T when ^T : (member set_WidthRequest : float -> unit) and
+                                    ^T :> XView and
+                                    ^T :> IView
+                                    > value =
+        View.onceProperty (fun _ xView -> (^T : (member set_WidthRequest : float -> unit) (xView, value)))
+
+    let inline heightRequest< 
+                                    ^T when ^T : (member set_HeightRequest : float -> unit) and
+                                    ^T :> XView and 
+                                    ^T :> IView
+                                    > value =
+        View.onceProperty (fun _ xView -> (^T : (member set_HeightRequest : float -> unit) (xView, value)))
+
+    let inline source< 
+                                    ^T when ^T : (member set_Source : ImageSource -> unit) and
+                                    ^T :> XView and
+                                    ^T :> IView
+                                    > value =
+        View.onceProperty (fun _ xView -> (^T : (member set_Source : ImageSource -> unit) (xView, value)))
+
+    let inline aspect< 
+                                    ^T when ^T : (member set_Aspect : Aspect -> unit) and
+                                    ^T :> XView and
+                                    ^T :> IView
+                                    > value =
+        View.onceProperty (fun _ xView -> (^T : (member set_Aspect : Aspect -> unit) (xView, value)))   
+
+    let inline backgroundColor< 
+                                    ^T when ^T : (member set_BackgroundColor : Color -> unit) and
+                                    ^T :> XView and
+                                    ^T :> IView
+                                    > value =
+        View.onceProperty (fun _ xView -> (^T : (member set_BackgroundColor : Color -> unit) (xView, value))) 
+
+    let inline absoluteLayoutFlags value =
+        View.onceProperty (fun _ xView -> Xamarin.Forms.AbsoluteLayout.SetLayoutFlags (xView, value))   
+
+    let inline absoluteLayoutBounds value =
+        View.onceProperty (fun _ xView -> Xamarin.Forms.AbsoluteLayout.SetLayoutBounds (xView, value))
 
     let inline children< ^T when 
-                    ^T :> View and
+                    ^T :> XView and
                     ^T :> IView and  
-                    ^T : (member get_Children : unit -> View System.Collections.Generic.IList)>
-                        (children: ViewComponent list) =
+                    ^T : (member get_Children : unit -> XView System.Collections.Generic.IList)>
+                        (children: View list) =
         let childrenViews = ResizeArray ()
 
-        OnceAndSubscribe (
+        View.onceAndSubscribeProperty
             (fun context view ->
                 children
                 |> List.iter (fun child ->
                     let childView = context.CreateView child
-                    ( ^T : (member get_Children : unit -> View System.Collections.Generic.IList) (view)).Add (childView)
-                    childrenViews.Add (WeakReference<View> (childView))
+                    ( ^T : (member get_Children : unit -> XView System.Collections.Generic.IList) (view)).Add (childView)
+                    childrenViews.Add (WeakReference<XView> (childView))
                 )
-            ),
+            )
             (fun context view ->
                 (children, childrenViews)
                 ||> Seq.iter2 (fun child childView -> 
@@ -179,18 +219,20 @@ module ViewComponentProperties =
                 )
                 |> context.AddDisposable
             )
-        )
 
     module Dynamic =
 
-        let inline text< ^T when ^T : (member set_Text : string -> unit) and
-                            ^T :> View> (va: Val<string>) =
-            OnceContext (fun context view ->
+        let inline text< 
+                                    ^T when ^T : (member set_Text : string -> unit) and
+                                    ^T :> XView and
+                                    ^T :> IView
+                                    > (va: Val<string>) =
+            View.onceProperty (fun context view ->
                 context.Sink view (fun view value -> (^T : (member set_Text : string -> unit) (view, value))) va
             )
 
         let inline itemsSource< ^T when ^T :> FsListView> (va: Val<FormsDSL.Cell list>) =
-            OnceContext (fun context view ->
+            View.onceProperty (fun context view ->
                 va |> context.Sink view (fun (view: ^T) values ->
                     view.ItemsSource <- values
                 )
@@ -198,24 +240,27 @@ module ViewComponentProperties =
 
     module Event =
        
-        let inline textChanged< ^T when ^T :> View
-                        and ^T : (member add_TextChanged : EventHandler<TextChangedEventArgs> -> unit)
-                        and ^T : (member remove_TextChanged : EventHandler<TextChangedEventArgs> -> unit)> f =
-            Subscribe (fun context view' ->
-                let del = EventHandler<TextChangedEventArgs> (fun _ args -> f args.NewTextValue)
-                (^T : (member add_TextChanged : EventHandler<TextChangedEventArgs> -> unit) (view', del))
+        let inline textChanged< 
+                                    ^T when ^T :> XView
+                                    and ^T :> IView
+                                    and ^T : (member add_TextChanged : EventHandler<Xamarin.Forms.TextChangedEventArgs> -> unit)
+                                    and ^T : (member remove_TextChanged : EventHandler<Xamarin.Forms.TextChangedEventArgs> -> unit)> f =
+            View.subscribeProperty (fun context view' ->
+                let del = EventHandler<Xamarin.Forms.TextChangedEventArgs> (fun _ args -> f args.NewTextValue)
+                (^T : (member add_TextChanged : EventHandler<Xamarin.Forms.TextChangedEventArgs> -> unit) (view', del))
                 { new IDisposable with
 
                     member this.Dispose () =
-                        (^T : (member remove_TextChanged : EventHandler<TextChangedEventArgs> -> unit) (view', del))
+                        (^T : (member remove_TextChanged : EventHandler<Xamarin.Forms.TextChangedEventArgs> -> unit) (view', del))
                 }
                 |> context.AddDisposable
             )
 
-        let inline clicked< ^T when ^T :> View
-                        and ^T : (member add_Clicked : EventHandler -> unit)
-                        and ^T : (member remove_Clicked : EventHandler -> unit)> f =
-            Subscribe (fun context view' ->
+        let inline clicked<         ^T when ^T :> XView
+                                    and ^T :> IView
+                                    and ^T : (member add_Clicked : EventHandler -> unit)
+                                    and ^T : (member remove_Clicked : EventHandler -> unit)> f =
+            View.subscribeProperty (fun context view' ->
                 let del = EventHandler (fun _ _ -> f ())
                 (^T : (member add_Clicked : EventHandler -> unit) (view', del))
                 { new IDisposable with
@@ -226,26 +271,23 @@ module ViewComponentProperties =
                 |> context.AddDisposable
             )
 
-        let inline initialized< ^T when ^T :> View
-                        and ^T :> IView> f =
-            Subscribe (fun context (view: ^T) ->
-                (view :> IView).InitializedEvent.Publish
+        let inline initialized f =
+            View.subscribeProperty (fun context xView ->
+                (xView :> IView).InitializedEvent.Publish
                 |> Observable.subscribe f
                 |> context.AddDisposable
             )
 
-        let inline appearing< ^T when ^T :> View
-                        and ^T :> IView> f =
-            Subscribe (fun context (view: ^T) ->
-                (view :> IView).AppearingEvent.Publish
+        let inline appearing f =
+            View.subscribeProperty (fun context xView ->
+                (xView :> IView).AppearingEvent.Publish
                 |> Observable.subscribe f
                 |> context.AddDisposable
             )
 
-        let inline disappearing< ^T when ^T :> View
-                        and ^T :> IView> f =
-            Subscribe (fun context (view: ^T) ->
-                (view :> IView).DisappearingEvent.Publish
+        let inline disappearing f =
+            View.subscribeProperty (fun context xView ->
+                (xView :> IView).DisappearingEvent.Publish
                 |> Observable.subscribe f
                 |> context.AddDisposable
             )
@@ -253,43 +295,42 @@ module ViewComponentProperties =
     module Effect =
 
         let navigationPush (va: CmdVal<FormsDSL.Page>) =
-            OnceContext (fun context view ->
+            View.onceProperty (fun context view ->
                 va |> context.SinkCmd context.Application (fun app page ->
-                    page.Push app
+                    page.Build app
                 )
             )
 
 [<AutoOpen>]
-module ViewComponents =
+module Views =
 
     let stackLayout props children' =
-        create 
+        View.lift
             (fun _ -> FsStackLayout ()) 
             ([ children children' ] @ props)
 
     let absoluteLayout props children' =
-        create 
+        View.lift
             (fun _ -> FsAbsoluteLayout ()) 
             ([ children children' ] @ props)
 
     let label props =
-        create (fun _ -> FsLabel ()) props
+        View.lift (fun _ -> FsLabel ()) props
 
     let entry props onTextChanged =
-         create 
+        View.lift 
             (fun _ -> FsEntry ()) 
             ([ Event.textChanged onTextChanged ] @ props)
 
     let button props onClick =
-         create 
+        View.lift 
             (fun _ -> FsButton ())
             ([ Event.clicked onClick ] @ props)
 
     let image props =
-        create (fun _ -> FsImage ()) props
+        View.lift (fun _ -> FsImage ()) props
 
     let listView props items =
-        create (fun context -> 
-            FsListView (WeakReference<Application> (context.Application))
+        View.lift (fun context -> 
+            FsListView (WeakReference<Xamarin.Forms.Application> (context.Application))
         ) ([ Dynamic.itemsSource items ] @ props)
-

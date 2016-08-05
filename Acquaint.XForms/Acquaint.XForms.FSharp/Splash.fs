@@ -1,7 +1,7 @@
 ﻿module Acquaint.XForms.Splash
 
 open Sesame
-open Xamarin.Forms
+
 open FormsDSL
 
 open Acquaint.XForms.Models

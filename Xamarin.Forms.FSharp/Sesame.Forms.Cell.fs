@@ -1,24 +1,24 @@
 ﻿namespace FormsDSL
 
 open System
-open Sesame
-open Xamarin.Forms
 
-type FsCell (app: WeakReference<Application>, comp: ViewComponent) as this =
-    inherit ViewCell ()
+open Sesame
+
+type FsCell (app: WeakReference<Xamarin.Forms.Application>, view: View) as this =
+    inherit Xamarin.Forms.ViewCell ()
 
     let mutable context = Unchecked.defaultof<_>
 
     do
         context <- new FormsContext (app)
-        this.View <- context.CreateView comp
-        context.SubscribeView comp this.View
+        this.View <- context.CreateView view
+        context.SubscribeView view this.View
         (this.View :> obj :?> IView).InitializedEvent.Trigger ()
 
     override this.OnAppearing () =
 
         if context.PageInitialized then
-            context.SubscribeView comp this.View
+            context.SubscribeView view this.View
 
         context.PageInitialized <- true
 
@@ -35,12 +35,12 @@ type FsCell (app: WeakReference<Application>, comp: ViewComponent) as this =
 
 [<RequireQualifiedAccess>]
 type Cell =
-    | View of comp: ViewComponent * styleId: string * height: double
+    | View of view: View * styleId: string * height: double
 
     member this.Build (app) =
         match this with
-        | View (comp, styleId, height) ->
-            let cell = FsCell (app, comp)
+        | View (view, styleId, height) ->
+            let cell = FsCell (app, view)
             cell.StyleId <- styleId
             cell.Height <- height
             cell :> Xamarin.Forms.Cell
